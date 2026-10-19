@@ -166,10 +166,10 @@ fun HomeScreen(
                 }
                 val shortcuts = @Composable { m: Modifier ->
                     Row(m, horizontalArrangement = Arrangement.spacedBy(gap)) {
-                        ShortcutButton("ATUALIZAR\nLISTAS", Icons.Default.Refresh, Modifier.weight(1f).fillMaxHeight(), refreshLists)
-                        ShortcutButton("ATUALIZAR\nAPP", Icons.Default.SystemUpdate, Modifier.weight(1f).fillMaxHeight(), checkUpdate)
-                        ShortcutButton("TESTAR\nCONEXÃO", Icons.Default.NetworkCheck, Modifier.weight(1f).fillMaxHeight()) { showConnectionTest = true }
-                        ShortcutButton("SAIR", Icons.AutoMirrored.Filled.Logout, Modifier.weight(1f).fillMaxHeight()) { confirmLogout = true }
+                        ShortcutButton("ATUALIZAR\nLISTAS", "LISTAS", Icons.Default.Refresh, Modifier.weight(1f).fillMaxHeight(), refreshLists)
+                        ShortcutButton("ATUALIZAR\nAPP", "ATUALIZAR", Icons.Default.SystemUpdate, Modifier.weight(1f).fillMaxHeight(), checkUpdate)
+                        ShortcutButton("TESTAR\nCONEXÃO", "TESTE", Icons.Default.NetworkCheck, Modifier.weight(1f).fillMaxHeight()) { showConnectionTest = true }
+                        ShortcutButton("SAIR", "SAIR", Icons.AutoMirrored.Filled.Logout, Modifier.weight(1f).fillMaxHeight()) { confirmLogout = true }
                     }
                 }
 
@@ -306,7 +306,13 @@ private fun DashboardCard(entry: DashboardEntry, big: Boolean, modifier: Modifie
 
 /** Botões menores da linha de baixo (atalhos): ícone e texto preenchem o botão. */
 @Composable
-private fun ShortcutButton(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+private fun ShortcutButton(
+    label: String,
+    shortLabel: String,
+    icon: ImageVector,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
     val shape = RoundedCornerShape(12.dp)
     Surface(
         onClick = onClick,
@@ -317,32 +323,43 @@ private fun ShortcutButton(label: String, icon: ImageVector, modifier: Modifier,
     ) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val density = LocalDensity.current
-            val lines = label.lines()
-            val longest = lines.maxOf { it.length }
-            val iconSize = maxHeight * 0.5f
-            // Espaço para o texto: largura total menos o ícone e margens
-            val textWidth = (maxWidth - iconSize - 28.dp).coerceAtLeast(40.dp)
-            val byWidth = textWidth / (longest * 0.66f)
-            val byHeight = maxHeight * 0.78f / (lines.size * 1.15f)
-            val fontSize = with(density) { minOf(byWidth, byHeight).coerceAtLeast(9.dp).toSp() }
-
-            Row(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    label,
-                    fontSize = fontSize,
-                    lineHeight = fontSize * 1.1f,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = lines.size,
-                    softWrap = false
-                )
+            if (maxWidth < 150.dp) {
+                // Botão estreito (celular em pé): ícone em cima e nome curto embaixo
+                val iconSize = maxHeight * 0.45f
+                val byWidth = (maxWidth - 8.dp) / (shortLabel.length * 0.7f)
+                val byHeight = maxHeight * 0.24f
+                val fontSize = with(density) { minOf(byWidth, byHeight).coerceAtLeast(8.dp).toSp() }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(icon, contentDescription = label.replace('\n', ' '), modifier = Modifier.size(iconSize))
+                    Text(shortLabel, fontSize = fontSize, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)
+                }
+            } else {
+                // Botão largo (paisagem / TV): ícone ao lado do nome completo
+                val lines = label.lines()
+                val longest = lines.maxOf { it.length }
+                val iconSize = maxHeight * 0.5f
+                val textWidth = (maxWidth - iconSize - 28.dp).coerceAtLeast(40.dp)
+                val byWidth = textWidth / (longest * 0.66f)
+                val byHeight = maxHeight * 0.78f / (lines.size * 1.15f)
+                val fontSize = with(density) { minOf(byWidth, byHeight).coerceAtLeast(9.dp).toSp() }
+                Row(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        label,
+                        fontSize = fontSize,
+                        lineHeight = fontSize * 1.1f,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = lines.size,
+                        softWrap = false
+                    )
+                }
             }
         }
     }
