@@ -34,7 +34,7 @@ jobs:
       - name: Compilar APK
         run: |
           set -o pipefail
-          gradle assembleDebug --no-daemon 2>&1 | tee build.log || {
+          gradle assembleVerdeDebug assembleRosaDebug --no-daemon 2>&1 | tee build.log || {
             # Mostra os erros de compilação como anotações (visíveis na página do build)
             grep -E "^e: |error:|What went wrong" -A3 build.log | head -40 | while IFS= read -r line; do
               echo "::error::${line}"
@@ -43,19 +43,25 @@ jobs:
           }
 
       - name: Renomear APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk IPTVPlayer.apk
+        run: |
+          cp app/build/outputs/apk/verde/debug/app-verde-debug.apk IPTVPlayer.apk
+          cp app/build/outputs/apk/rosa/debug/app-rosa-debug.apk IPTVPlayer-Rosa.apk
 
       - name: Guardar APK nos artefatos
         uses: actions/upload-artifact@v4
         with:
           name: IPTVPlayer-apk
-          path: IPTVPlayer.apk
+          path: |
+            IPTVPlayer.apk
+            IPTVPlayer-Rosa.apk
 
       - name: Publicar versão (link direto de instalação)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: IPTV Player v1.0.${{ github.run_number }}
-          body: "Baixe o arquivo IPTVPlayer.apk abaixo e abra no celular para instalar."
+          body: "Versão verde: IPTVPlayer.apk • Versão rosa: IPTVPlayer-Rosa.apk. Baixe e abra no celular para instalar."
           make_latest: true
-          files: IPTVPlayer.apk
+          files: |
+            IPTVPlayer.apk
+            IPTVPlayer-Rosa.apk

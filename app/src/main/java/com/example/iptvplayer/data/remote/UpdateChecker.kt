@@ -15,8 +15,9 @@ object UpdateChecker {
 
     private const val REPO = "wbrandaon-cpu/iptv-plater"
 
-    /** Link direto que sempre baixa o APK mais recente. */
-    const val DOWNLOAD_URL = "https://github.com/$REPO/releases/latest/download/IPTVPlayer.apk"
+    /** Link direto que sempre baixa o APK mais recente desta versão (verde ou rosa). */
+    val DOWNLOAD_URL = "https://github.com/$REPO/releases/latest/download/" +
+        if (BuildConfig.THEME_COLOR == "rosa") "IPTVPlayer-Rosa.apk" else "IPTVPlayer.apk"
 
     data class UpdateInfo(val versionCode: Int, val versionName: String) {
         val isNewer: Boolean get() = versionCode > BuildConfig.VERSION_CODE

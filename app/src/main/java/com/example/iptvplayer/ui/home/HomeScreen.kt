@@ -61,6 +61,7 @@ import com.example.iptvplayer.data.remote.UpdateChecker
 import com.example.iptvplayer.ui.components.AppTopBar
 import com.example.iptvplayer.ui.components.focusHighlight
 import com.example.iptvplayer.ui.theme.LiveGradient
+import com.example.iptvplayer.ui.theme.ShortcutBackground
 import com.example.iptvplayer.ui.theme.MoviesGradient
 import com.example.iptvplayer.ui.theme.SeriesGradient
 import kotlinx.coroutines.launch
@@ -365,7 +366,7 @@ private fun ShortcutButton(
     }
 }
 
-private val ShortcutColor = Color(0xFF2E5E45)
+private val ShortcutColor = ShortcutBackground
 
 /** exp_date vem como timestamp Unix (segundos) ou null para contas sem vencimento. */
 private fun formatExpiration(expDate: String?): String? {

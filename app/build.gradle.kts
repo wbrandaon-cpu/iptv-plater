@@ -32,6 +32,23 @@ android {
         }
     }
 
+    // Duas versões do app, instaláveis lado a lado no mesmo aparelho
+    flavorDimensions += "cor"
+    productFlavors {
+        create("verde") {
+            dimension = "cor"
+            buildConfigField("String", "THEME_COLOR", "\"verde\"")
+            resValue("string", "app_name", "IPTV Player")
+        }
+        create("rosa") {
+            dimension = "cor"
+            applicationIdSuffix = ".rosa"
+            versionNameSuffix = "-rosa"
+            buildConfigField("String", "THEME_COLOR", "\"rosa\"")
+            resValue("string", "app_name", "IPTV Player Rosa")
+        }
+    }
+
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("app")

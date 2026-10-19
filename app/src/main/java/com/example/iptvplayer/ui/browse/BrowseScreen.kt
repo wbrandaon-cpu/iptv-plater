@@ -71,6 +71,7 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.iptvplayer.AppContainer
 import com.example.iptvplayer.data.logos.ChannelLogos
+import com.example.iptvplayer.ui.theme.ThumbBackground
 import com.example.iptvplayer.ui.components.LogoTone
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -536,7 +537,7 @@ private fun Thumbnail(item: ContentItem, modifier: Modifier) {
     val background = when {
         darkLogo -> Color.White.copy(alpha = 0.5f)
         isLive -> Color.Transparent
-        else -> Color(0xFF0F1A12)
+        else -> ThumbBackground
     }
 
     Box(
