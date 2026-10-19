@@ -1,6 +1,10 @@
 package com.example.iptvplayer.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -99,6 +103,23 @@ fun HomeScreen(
         append("  •  v${BuildConfig.VERSION_NAME}")
     }
 
+    val checkUpdate: () -> Unit = {
+        scope.launch { snackbar.showSnackbar("Verificando atualizações...") }
+        scope.launch {
+            val latest = UpdateChecker.latest()
+            snackbar.currentSnackbarData?.dismiss()
+            when {
+                latest == null -> snackbar.showSnackbar("Não foi possível verificar agora.")
+                latest.isNewer -> update = latest
+                else -> snackbar.showSnackbar("Você já está na versão mais recente (v${BuildConfig.VERSION_NAME}).")
+            }
+        }
+    }
+    val refreshLists: () -> Unit = {
+        container.repository.clearCache()
+        scope.launch { snackbar.showSnackbar("Pronto! As listas serão baixadas de novo do servidor.") }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
@@ -107,22 +128,6 @@ fun HomeScreen(
                 title = "IPTV Player",
                 subtitle = subtitle,
                 actions = {
-                    IconButton(onClick = {
-                        scope.launch {
-                            snackbar.showSnackbar("Verificando atualizações...")
-                        }
-                        scope.launch {
-                            val latest = UpdateChecker.latest()
-                            snackbar.currentSnackbarData?.dismiss()
-                            when {
-                                latest == null -> snackbar.showSnackbar("Não foi possível verificar agora.")
-                                latest.isNewer -> update = latest
-                                else -> snackbar.showSnackbar("Você já está na versão mais recente (v${BuildConfig.VERSION_NAME}).")
-                            }
-                        }
-                    }) {
-                        Icon(Icons.Default.SystemUpdate, contentDescription = "Atualizar aplicativo")
-                    }
                     IconButton(onClick = { confirmLogout = true }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sair")
                     }
@@ -144,20 +149,48 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
+                val gap = 14.dp
                 val isWide = maxWidth > maxHeight
+
+                val live = @Composable { m: Modifier ->
+                    DashboardCard(entries[0], big = true, modifier = m) { onOpen(ContentType.LIVE) }
+                }
+                val movies = @Composable { m: Modifier ->
+                    DashboardCard(entries[2], big = false, modifier = m) { onOpen(ContentType.MOVIE) }
+                }
+                val series = @Composable { m: Modifier ->
+                    DashboardCard(entries[1], big = false, modifier = m) { onOpen(ContentType.SERIES) }
+                }
+                val shortcuts = @Composable { m: Modifier ->
+                    Row(m, horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        ShortcutButton("ATUALIZAR\nLISTAS", Icons.Default.Refresh, Modifier.weight(1f).fillMaxHeight(), refreshLists)
+                        ShortcutButton("ATUALIZAR\nAPP", Icons.Default.SystemUpdate, Modifier.weight(1f).fillMaxHeight(), checkUpdate)
+                        ShortcutButton("SAIR", Icons.AutoMirrored.Filled.Logout, Modifier.weight(1f).fillMaxHeight()) { confirmLogout = true }
+                    }
+                }
+
                 if (isWide) {
-                    // Paisagem / TV Box: cards lado a lado
-                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        entries.forEach { e ->
-                            DashboardCard(e, Modifier.weight(1f).fillMaxHeight()) { onOpen(e.type) }
+                    // Paisagem / TV Box: TV AO VIVO grande à esquerda;
+                    // FILMES e SÉRIES à direita e atalhos menores embaixo deles.
+                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        live(Modifier.weight(1f).fillMaxHeight())
+                        Column(Modifier.weight(1.45f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                            Row(Modifier.fillMaxWidth().weight(3f), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                movies(Modifier.weight(1f).fillMaxHeight())
+                                series(Modifier.weight(1f).fillMaxHeight())
+                            }
+                            shortcuts(Modifier.fillMaxWidth().weight(1f))
                         }
                     }
                 } else {
-                    // Retrato: cards empilhados
-                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        entries.forEach { e ->
-                            DashboardCard(e, Modifier.weight(1f).fillMaxWidth()) { onOpen(e.type) }
+                    // Retrato (celular em pé): TV AO VIVO em cima, FILMES e SÉRIES lado a lado, atalhos embaixo
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                        live(Modifier.fillMaxWidth().weight(1.2f))
+                        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                            movies(Modifier.weight(1f).fillMaxHeight())
+                            series(Modifier.weight(1f).fillMaxHeight())
                         }
+                        shortcuts(Modifier.fillMaxWidth().height(72.dp))
                     }
                 }
             }
@@ -211,28 +244,80 @@ private fun UpdateBanner(info: UpdateChecker.UpdateInfo, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DashboardCard(entry: DashboardEntry, modifier: Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(24.dp)
+private fun DashboardCard(entry: DashboardEntry, big: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
     Surface(onClick = onClick, modifier = modifier.focusHighlight(shape), shape = shape) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Brush.linearGradient(entry.gradient)),
-            contentAlignment = Alignment.Center
+                .background(Brush.verticalGradient(entry.gradient))
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(entry.icon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(64.dp))
-                Spacer(Modifier.height(12.dp))
+            Column(
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Ícone dentro de um círculo com contorno, como no modelo
+                Box(
+                    Modifier
+                        .size(if (big) 96.dp else 64.dp)
+                        .border(3.dp, Color.White, CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        entry.icon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(if (big) 52.dp else 34.dp)
+                    )
+                }
+                Spacer(Modifier.height(if (big) 18.dp else 10.dp))
                 Text(
                     entry.type.title,
-                    color = Color.Black,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold
+                    color = Color.White,
+                    style = if (big) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center
                 )
             }
         }
     }
 }
+
+/** Botões menores da linha de baixo (atalhos). */
+@Composable
+private fun ShortcutButton(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = ShortcutColor,
+        contentColor = Color.White,
+        modifier = modifier.focusHighlight(shape)
+    ) {
+        Row(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                lineHeight = MaterialTheme.typography.labelLarge.fontSize
+            )
+        }
+    }
+}
+
+private val ShortcutColor = Color(0xFF2E5E45)
 
 /** exp_date vem como timestamp Unix (segundos) ou null para contas sem vencimento. */
 private fun formatExpiration(expDate: String?): String? {

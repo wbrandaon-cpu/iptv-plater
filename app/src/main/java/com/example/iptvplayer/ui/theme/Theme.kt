@@ -13,9 +13,10 @@ val Black = Color(0xFF000000)
 val Panel = Color(0xFF0B0F0C)
 val PanelLight = Color(0xFF141B16)
 
-val LiveGradient = listOf(Color(0xFF00E676), Color(0xFF005C2E))
-val SeriesGradient = listOf(Color(0xFF1DE9B6), Color(0xFF004D40))
-val MoviesGradient = listOf(Color(0xFF76FF03), Color(0xFF1B5E20))
+// Cards da tela inicial: verdes vivos no topo, escurecendo para baixo (texto branco legível)
+val LiveGradient = listOf(Color(0xFF00C853), Color(0xFF00473A))
+val SeriesGradient = listOf(Color(0xFF00A88F), Color(0xFF003B36))
+val MoviesGradient = listOf(Color(0xFF4CAF50), Color(0xFF173F1A))
 
 private val DarkColors = darkColorScheme(
     primary = Green,
