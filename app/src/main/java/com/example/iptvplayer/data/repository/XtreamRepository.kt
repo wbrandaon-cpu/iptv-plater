@@ -126,7 +126,7 @@ class XtreamRepository(private val api: XtreamApi) {
 
     /**
      * Monta as URLs de reprodução no padrão Xtream Codes.
-     * Para TV ao vivo devolve HLS (.m3u8) e, como fallback, MPEG-TS (.ts):
+     * Para TV ao vivo devolve MPEG-TS (.ts) e, como reserva, HLS (.m3u8):
      * alguns servidores só entregam um dos dois.
      */
     fun streamUrls(type: ContentType, id: String, extension: String?): List<String> {
@@ -135,9 +135,11 @@ class XtreamRepository(private val api: XtreamApi) {
         val pass = Uri.encode(c.password)
         val s = c.serverUrl
         return when (type) {
+            // MPEG-TS direto começa mais rápido e com menos atraso que HLS;
+            // o .m3u8 fica como reserva para servidores sem TS.
             ContentType.LIVE -> listOf(
-                "$s/live/$user/$pass/$id.m3u8",
-                "$s/live/$user/$pass/$id.ts"
+                "$s/live/$user/$pass/$id.ts",
+                "$s/live/$user/$pass/$id.m3u8"
             )
             ContentType.MOVIE -> listOf("$s/movie/$user/$pass/$id.${extension ?: "mp4"}")
             ContentType.SERIES -> listOf("$s/series/$user/$pass/$id.${extension ?: "mp4"}")

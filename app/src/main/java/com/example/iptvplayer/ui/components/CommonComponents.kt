@@ -54,6 +54,7 @@ fun ErrorView(message: String, onRetry: () -> Unit) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.error)
+            MobileDataHint()
             Button(onClick = onRetry) { Text("Tentar novamente") }
         }
     }

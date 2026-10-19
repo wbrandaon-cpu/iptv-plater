@@ -58,6 +58,13 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.iptvplayer.data.remote.ApiClient
 import com.example.iptvplayer.ui.components.ClockText
+import com.example.iptvplayer.ui.components.MobileDataHint
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Player em tela cheia com Media3/ExoPlayer.
@@ -79,15 +86,43 @@ fun PlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
 
+    val scope = rememberCoroutineScope()
+    var reconnectAttempts by remember { mutableIntStateOf(0) }
+
     val player = remember {
         val httpFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(ApiClient.USER_AGENT)
             .setAllowCrossProtocolRedirects(true) // servidores IPTV redirecionam muito (http <-> https)
-            .setConnectTimeoutMs(15_000)
-            .setReadTimeoutMs(30_000)
+            .setConnectTimeoutMs(10_000)
+            .setReadTimeoutMs(20_000)
+
+        // MPEG-TS: começa a exibir sem esperar um quadro-chave completo (troca de canal mais rápida)
+        val extractors = DefaultExtractorsFactory().setTsExtractorFlags(
+            DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
+        )
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(httpFactory, extractors)
+            // HLS ao vivo (fallback): fica perto do "ao vivo" e acelera levemente para alcançar
+            .setLiveTargetOffsetMs(3_000)
+            .setLiveMinSpeed(0.97f)
+            .setLiveMaxSpeed(1.05f)
+
+        // Buffer curto no ao vivo = imagem aparece rápido e com pouco atraso.
+        // Filmes/séries usam buffer maior para não travar.
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ if (isLive) 2_000 else 15_000,
+                /* maxBufferMs = */ if (isLive) 15_000 else 50_000,
+                /* bufferForPlaybackMs = */ if (isLive) 500 else 1_500,
+                /* bufferForPlaybackAfterRebufferMs = */ if (isLive) 1_500 else 3_000
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
 
         ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(httpFactory))
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
             .build()
             .apply { playWhenReady = true }
     }
@@ -107,15 +142,40 @@ fun PlayerScreen(
     // Tratamento de erros + liberação do player
     DisposableEffect(player) {
         val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                when (state) {
+                    Player.STATE_READY -> reconnectAttempts = 0
+                    // Ao vivo nunca deveria "terminar": se o servidor cortou, reconecta
+                    Player.STATE_ENDED -> if (isLive) {
+                        player.seekToDefaultPosition()
+                        player.prepare()
+                    }
+                    else -> Unit
+                }
+            }
+
             override fun onPlayerError(error: PlaybackException) {
+                val networkError = error.errorCode in NETWORK_ERRORS
                 when {
                     // Live atrasou demais em relação à janela do HLS: volta para o "ao vivo"
                     error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> {
                         player.seekToDefaultPosition()
                         player.prepare()
                     }
-                    // Tenta o próximo formato (ex.: .m3u8 -> .ts)
-                    urlIndex < urls.lastIndex -> urlIndex++
+                    // Queda de conexão (ex.: troca Wi-Fi <-> 4G): reconecta sozinho
+                    networkError && reconnectAttempts < MAX_RECONNECTS -> {
+                        reconnectAttempts++
+                        scope.launch {
+                            delay(1_000L * reconnectAttempts)
+                            player.seekToDefaultPosition()
+                            player.prepare()
+                        }
+                    }
+                    // Tenta o próximo formato (ex.: .ts -> .m3u8)
+                    urlIndex < urls.lastIndex -> {
+                        reconnectAttempts = 0
+                        urlIndex++
+                    }
                     else -> errorMessage = friendlyPlaybackError(error)
                 }
             }
@@ -132,8 +192,16 @@ fun PlayerScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> player.pause()
-                Lifecycle.Event.ON_START -> if (errorMessage == null) player.play()
+                // Ao vivo: fecha a conexão em segundo plano (libera a conexão da conta)
+                // e, ao voltar, reabre já no ponto "ao vivo", sem atraso acumulado.
+                Lifecycle.Event.ON_STOP -> if (isLive) player.stop() else player.pause()
+                Lifecycle.Event.ON_START -> if (errorMessage == null) {
+                    if (isLive) {
+                        player.seekToDefaultPosition()
+                        player.prepare()
+                    }
+                    player.play()
+                }
                 else -> Unit
             }
         }
@@ -244,11 +312,13 @@ fun PlayerScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(msg, color = Color.White, textAlign = TextAlign.Center)
+                MobileDataHint()
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = onBack) { Text("Voltar", color = Color.White) }
                     if (urls.isNotEmpty()) {
                         Button(onClick = {
                             errorMessage = null
+                            reconnectAttempts = 0
                             if (urlIndex == 0) {
                                 player.prepare() // mesma URL: só reprepara
                             } else {
@@ -261,6 +331,15 @@ fun PlayerScreen(
         }
     }
 }
+
+private const val MAX_RECONNECTS = 3
+
+private val NETWORK_ERRORS = setOf(
+    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+    PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+    PlaybackException.ERROR_CODE_TIMEOUT
+)
 
 private fun friendlyPlaybackError(error: PlaybackException): String = when (error.errorCode) {
     PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->

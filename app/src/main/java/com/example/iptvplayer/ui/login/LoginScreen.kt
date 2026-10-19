@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.iptvplayer.AppContainer
+import com.example.iptvplayer.ui.components.MobileDataHint
 
 @Composable
 fun LoginScreen(
@@ -139,6 +140,7 @@ fun LoginScreen(
 
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                MobileDataHint()
             }
 
             Button(
