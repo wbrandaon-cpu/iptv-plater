@@ -17,11 +17,18 @@ import com.example.iptvplayer.util.loadState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** Categoria selecionada. id = null significa "Todos". */
-data class Selection(val id: String?, val name: String)
+/** Categoria selecionada. id = null significa "Todos"; FAVORITES_ID, os favoritos. */
+data class Selection(val id: String?, val name: String) {
+    val isFavorites: Boolean get() = id == FAVORITES_ID
+}
+
+const val FAVORITES_ID = "__favoritos__"
+const val FAVORITES_LABEL = "FAVORITOS"
 
 /**
  * Estado da tela de navegação: categorias à esquerda e conteúdo da
@@ -48,6 +55,11 @@ class BrowseViewModel(
     val sortOrder: StateFlow<SortOrder> =
         session.sortOrder.stateIn(viewModelScope, SharingStarted.Eagerly, SortOrder.DEFAULT)
 
+    /** Favoritos só deste tipo (canais, filmes ou séries), atualizados na hora. */
+    val favorites: StateFlow<List<ContentItem>> = session.favorites
+        .map { list -> list.filter { it.type == type } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     private var itemsJob: Job? = null
 
     init {
@@ -59,10 +71,17 @@ class BrowseViewModel(
         viewModelScope.launch {
             val result = loadState { repository.loadCategories(type) }
             categories = result
-            // Primeira abertura: já seleciona a 1ª categoria para mostrar conteúdo ao lado
+            // Primeira abertura: abre os FAVORITOS (se houver) ou a 1ª categoria
             if (result is UiState.Success && selection == null) {
+                val hasFavorites = session.favorites.first().any { it.type == type }
                 val first = result.data.firstOrNull()
-                select(if (first != null) Selection(first.id, first.name) else Selection(null, type.allLabel))
+                select(
+                    when {
+                        hasFavorites -> Selection(FAVORITES_ID, FAVORITES_LABEL)
+                        first != null -> Selection(first.id, first.name)
+                        else -> Selection(null, type.allLabel)
+                    }
+                )
             }
         }
     }
@@ -75,6 +94,11 @@ class BrowseViewModel(
     fun loadItems() {
         val current = selection ?: return
         itemsJob?.cancel()
+        // Favoritos vêm do aparelho (StateFlow acima), não do servidor
+        if (current.isFavorites) {
+            items = UiState.Success(emptyList())
+            return
+        }
         items = UiState.Loading
         itemsJob = viewModelScope.launch {
             items = loadState { repository.loadItems(type, current.id) }
@@ -86,6 +110,11 @@ class BrowseViewModel(
         repository.clearCache()
         loadCategories()
         loadItems()
+    }
+
+    /** Dois toques no item: adiciona/remove dos favoritos. */
+    fun toggleFavorite(item: ContentItem, onResult: (added: Boolean) -> Unit) {
+        viewModelScope.launch { onResult(session.toggleFavorite(item)) }
     }
 
     fun setViewMode(mode: ViewMode) {

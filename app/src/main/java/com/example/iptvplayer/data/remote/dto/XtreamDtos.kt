@@ -88,3 +88,13 @@ data class EpisodeDto(
     @SerializedName("season") val season: String?,
     @SerializedName("info") val info: JsonElement?
 )
+
+/** Favorito salvo no aparelho (JSON no DataStore). */
+data class FavoriteDto(
+    @SerializedName("id") val id: String?,
+    @SerializedName("name") val name: String?,
+    @SerializedName("image") val image: String?,
+    @SerializedName("ext") val extension: String?,
+    @SerializedName("type") val type: String?,
+    @SerializedName("added") val added: Long?
+)

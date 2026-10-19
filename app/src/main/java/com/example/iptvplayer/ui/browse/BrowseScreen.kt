@@ -1,6 +1,12 @@
 package com.example.iptvplayer.ui.browse
 
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -218,6 +224,7 @@ private fun CheckIcon() {
 
 @Composable
 private fun CategoryPane(vm: BrowseViewModel, compact: Boolean, modifier: Modifier) {
+    val favoritesCount = vm.favorites.collectAsState().value.size
     Box(modifier) {
         when (val s = vm.categories) {
             UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -238,6 +245,13 @@ private fun CategoryPane(vm: BrowseViewModel, compact: Boolean, modifier: Modifi
                 contentPadding = PaddingValues(vertical = 6.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
+                item {
+                    CategoryEntry(
+                        name = "★ $FAVORITES_LABEL ($favoritesCount)",
+                        selected = vm.selection?.isFavorites == true,
+                        compact = compact
+                    ) { vm.select(Selection(FAVORITES_ID, FAVORITES_LABEL)) }
+                }
                 item {
                     CategoryEntry(
                         name = vm.type.allLabel,
@@ -293,11 +307,28 @@ private fun ContentPane(
     modifier: Modifier
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    val context = LocalContext.current
+    val favorites by vm.favorites.collectAsState()
+    val favoriteIds = remember(favorites) { favorites.map { it.id }.toSet() }
+    val showingFavorites = vm.selection?.isFavorites == true
+
+    // Dois toques (ou segurar) no item: adiciona/remove dos favoritos
+    val onToggleFavorite: (ContentItem) -> Unit = { item ->
+        vm.toggleFavorite(item) { added ->
+            Toast.makeText(
+                context,
+                if (added) "★ \"${item.name}\" adicionado aos favoritos"
+                else "\"${item.name}\" removido dos favoritos",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     Column(modifier) {
         SearchField(query, { query = it }, "Buscar nesta categoria")
 
-        when (val s = vm.items) {
+        val source: UiState<List<ContentItem>> = if (showingFavorites) UiState.Success(favorites) else vm.items
+        when (val s = source) {
             UiState.Loading -> LoadingView(
                 if (vm.type == ContentType.LIVE) "Carregando canais..." else "Carregando..."
             )
@@ -315,7 +346,14 @@ private fun ContentPane(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp)
                 )
                 when {
-                    shown.isEmpty() -> EmptyView(if (s.data.isEmpty()) "Esta categoria está vazia." else "Nada encontrado.")
+                    shown.isEmpty() -> EmptyView(
+                        when {
+                            showingFavorites && s.data.isEmpty() ->
+                                "Nenhum favorito ainda.\n\nDê dois toques (ou segure) em um item para adicioná-lo aqui."
+                            s.data.isEmpty() -> "Esta categoria está vazia."
+                            else -> "Nada encontrado."
+                        }
+                    )
                     // key(...) recria a lista ao trocar de categoria/ordem, voltando ao topo
                     viewMode == ViewMode.GRID -> key(vm.selection, sortOrder) {
                         val isLive = vm.type == ContentType.LIVE
@@ -331,7 +369,12 @@ private fun ContentPane(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(shown, contentType = { it.type }) { item ->
-                                PosterCard(item) { onItemClick(item) }
+                                PosterCard(
+                                    item = item,
+                                    isFavorite = item.id in favoriteIds,
+                                    onClick = { onItemClick(item) },
+                                    onToggleFavorite = { onToggleFavorite(item) }
+                                )
                             }
                         }
                     }
@@ -341,7 +384,12 @@ private fun ContentPane(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(shown, contentType = { it.type }) { item ->
-                                ListRow(item) { onItemClick(item) }
+                                ListRow(
+                                    item = item,
+                                    isFavorite = item.id in favoriteIds,
+                                    onClick = { onItemClick(item) },
+                                    onToggleFavorite = { onToggleFavorite(item) }
+                                )
                             }
                         }
                     }
@@ -352,24 +400,33 @@ private fun ContentPane(
 }
 
 @Composable
-private fun PosterCard(item: ContentItem, onClick: () -> Unit) {
+private fun PosterCard(
+    item: ContentItem,
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
     val isLive = item.type == ContentType.LIVE
     val shape = RoundedCornerShape(10.dp)
     Surface(
-        onClick = onClick,
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .padding(5.dp)
             .focusHighlight(shape)
+            .clip(shape)
+            .favoriteClickable(onClick, onToggleFavorite)
     ) {
         Column {
-            Thumbnail(
-                item,
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(if (isLive) 16f / 11f else 2f / 3f)
-            )
+            Box {
+                Thumbnail(
+                    item,
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(if (isLive) 16f / 11f else 2f / 3f)
+                )
+                if (isFavorite) FavoriteBadge(Modifier.align(Alignment.TopEnd).padding(4.dp))
+            }
             Text(
                 item.name,
                 style = MaterialTheme.typography.bodySmall,
@@ -386,17 +443,23 @@ private fun PosterCard(item: ContentItem, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ListRow(item: ContentItem, onClick: () -> Unit) {
+private fun ListRow(
+    item: ContentItem,
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
     val isLive = item.type == ContentType.LIVE
     val shape = RoundedCornerShape(10.dp)
     Surface(
-        onClick = onClick,
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp, vertical = 3.dp)
             .focusHighlight(shape)
+            .clip(shape)
+            .favoriteClickable(onClick, onToggleFavorite)
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Thumbnail(
@@ -413,8 +476,31 @@ private fun ListRow(item: ContentItem, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            if (isFavorite) FavoriteBadge()
         }
     }
+}
+
+/** Toque: abre. Dois toques ou segurar (útil no controle da TV Box): favorita. */
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.favoriteClickable(onClick: () -> Unit, onToggleFavorite: () -> Unit): Modifier =
+    combinedClickable(
+        onClick = onClick,
+        onDoubleClick = onToggleFavorite,
+        onLongClick = onToggleFavorite
+    )
+
+@Composable
+private fun FavoriteBadge(modifier: Modifier = Modifier) {
+    Icon(
+        Icons.Rounded.Star,
+        contentDescription = "Favorito",
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .size(22.dp)
+            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+            .padding(2.dp)
+    )
 }
 
 @Composable

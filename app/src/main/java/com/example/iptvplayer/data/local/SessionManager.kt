@@ -7,7 +7,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.iptvplayer.data.model.ContentItem
+import com.example.iptvplayer.data.model.ContentType
 import com.example.iptvplayer.data.model.Credentials
+import com.example.iptvplayer.data.remote.dto.FavoriteDto
+import com.google.gson.Gson
 import com.example.iptvplayer.data.model.SortOrder
 import com.example.iptvplayer.data.model.ViewMode
 import kotlinx.coroutines.flow.Flow
@@ -30,7 +34,10 @@ class SessionManager(private val context: Context) {
         val EXP_DATE = stringPreferencesKey("exp_date")
         val VIEW_MODE = stringPreferencesKey("view_mode")
         val SORT_ORDER = stringPreferencesKey("sort_order")
+        val FAVORITES = stringPreferencesKey("favorites_v1")
     }
+
+    private val gson = Gson()
 
     private val prefs: Flow<Preferences> = context.dataStore.data
         .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
@@ -66,6 +73,41 @@ class SessionManager(private val context: Context) {
     suspend fun setSortOrder(order: SortOrder) {
         context.dataStore.edit { it[Keys.SORT_ORDER] = order.name }
     }
+
+    /** Favoritos de todos os tipos, do mais recente para o mais antigo. */
+    val favorites: Flow<List<ContentItem>> = prefs.map { decodeFavorites(it[Keys.FAVORITES]) }
+
+    /** Adiciona ou remove dos favoritos. Retorna true se foi adicionado. */
+    suspend fun toggleFavorite(item: ContentItem): Boolean {
+        var added = false
+        context.dataStore.edit { p ->
+            val list = decodeFavorites(p[Keys.FAVORITES]).toMutableList()
+            val index = list.indexOfFirst { it.type == item.type && it.id == item.id }
+            if (index >= 0) {
+                list.removeAt(index)
+            } else {
+                list.add(0, item)
+                added = true
+            }
+            p[Keys.FAVORITES] = gson.toJson(list.map { it.toFavoriteDto() })
+        }
+        return added
+    }
+
+    private fun decodeFavorites(json: String?): List<ContentItem> {
+        if (json.isNullOrBlank()) return emptyList()
+        val dtos = runCatching { gson.fromJson(json, Array<FavoriteDto>::class.java) }.getOrNull()
+            ?: return emptyList()
+        return dtos.mapIndexedNotNull { index, dto ->
+            val id = dto.id ?: return@mapIndexedNotNull null
+            val type = dto.type?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
+                ?: return@mapIndexedNotNull null
+            ContentItem(id, dto.name.orEmpty(), dto.image, dto.extension, type, index, dto.added)
+        }
+    }
+
+    private fun ContentItem.toFavoriteDto() =
+        FavoriteDto(id, name, imageUrl, extension, type.name, added)
 
     suspend fun save(credentials: Credentials, expDate: String?) {
         context.dataStore.edit { p ->
