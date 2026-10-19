@@ -17,8 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.iptvplayer.AppContainer
 import com.example.iptvplayer.data.model.ContentType
-import com.example.iptvplayer.ui.catalog.CategoriesScreen
-import com.example.iptvplayer.ui.catalog.ContentGridScreen
+import com.example.iptvplayer.ui.browse.BrowseScreen
 import com.example.iptvplayer.ui.home.HomeScreen
 import com.example.iptvplayer.ui.login.LoginScreen
 import com.example.iptvplayer.ui.player.PlayerScreen
@@ -28,17 +27,11 @@ import kotlinx.coroutines.flow.first
 object Routes {
     const val LOGIN = "login"
     const val HOME = "home"
-    const val CATEGORIES = "categories/{type}"
-    const val CONTENT = "content/{type}/{categoryId}?name={name}"
+    const val BROWSE = "browse/{type}"
     const val SERIES = "series/{seriesId}?name={name}"
     const val PLAYER = "player/{type}/{id}?ext={ext}&title={title}"
 
-    const val ALL = "all"
-
-    fun categories(type: ContentType) = "categories/${type.name}"
-
-    fun content(type: ContentType, categoryId: String?, name: String) =
-        "content/${type.name}/${Uri.encode(categoryId ?: ALL)}?name=${Uri.encode(name)}"
+    fun browse(type: ContentType) = "browse/${type.name}"
 
     fun series(seriesId: String, name: String) =
         "series/${Uri.encode(seriesId)}?name=${Uri.encode(name)}"
@@ -80,7 +73,7 @@ fun AppNavHost(container: AppContainer) {
         composable(Routes.HOME) {
             HomeScreen(
                 container = container,
-                onOpen = { type -> nav.navigate(Routes.categories(type)) },
+                onOpen = { type -> nav.navigate(Routes.browse(type)) },
                 onLoggedOut = {
                     nav.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 }
@@ -88,36 +81,13 @@ fun AppNavHost(container: AppContainer) {
         }
 
         composable(
-            Routes.CATEGORIES,
+            Routes.BROWSE,
             arguments = listOf(navArgument("type") { type = NavType.StringType })
         ) { entry ->
             val type = ContentType.valueOf(entry.arguments?.getString("type")!!)
-            CategoriesScreen(
+            BrowseScreen(
                 container = container,
                 type = type,
-                onBack = { nav.popBackStack() },
-                onCategoryClick = { categoryId, name ->
-                    nav.navigate(Routes.content(type, categoryId, name))
-                }
-            )
-        }
-
-        composable(
-            Routes.CONTENT,
-            arguments = listOf(
-                navArgument("type") { type = NavType.StringType },
-                navArgument("categoryId") { type = NavType.StringType },
-                navArgument("name") { type = NavType.StringType; defaultValue = "" }
-            )
-        ) { entry ->
-            val args = entry.arguments!!
-            val type = ContentType.valueOf(args.getString("type")!!)
-            val categoryId = args.getString("categoryId")?.takeIf { it != Routes.ALL }
-            ContentGridScreen(
-                container = container,
-                type = type,
-                categoryId = categoryId,
-                title = args.getString("name").orEmpty(),
                 onBack = { nav.popBackStack() },
                 onItemClick = { item ->
                     if (item.type == ContentType.SERIES) {

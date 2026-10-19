@@ -4,6 +4,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Cada build no GitHub recebe um número crescente (1, 2, 3...).
+// Ele vira o versionCode, usado pelo app para saber se há atualização.
+val buildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+
 android {
     namespace = "com.example.iptvplayer"
     compileSdk = 35
@@ -12,13 +16,28 @@ android {
         applicationId = "com.example.iptvplayer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = buildNumber
+        versionName = "1.0.$buildNumber"
         vectorDrawables { useSupportLibrary = true }
     }
 
+    // Chave fixa: todas as versões têm a mesma assinatura, então o Android
+    // aceita instalar a atualização por cima sem desinstalar o app.
+    signingConfigs {
+        create("app") {
+            storeFile = file("keystore/iptvplayer.jks")
+            storePassword = "iptvplayer"
+            keyAlias = "iptvplayer"
+            keyPassword = "iptvplayer"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("app")
+        }
         release {
+            signingConfig = signingConfigs.getByName("app")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

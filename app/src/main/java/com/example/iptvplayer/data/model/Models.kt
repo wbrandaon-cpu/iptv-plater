@@ -26,8 +26,22 @@ data class ContentItem(
     val name: String,
     val imageUrl: String?,
     val extension: String?,
-    val type: ContentType
+    val type: ContentType,
+    /** Posição original no servidor (ordem "Padrão"). */
+    val position: Int = 0,
+    /** Data em que foi adicionado (Unix segundos), para ordenar por "Mais recentes". */
+    val added: Long? = null
 )
+
+enum class ViewMode { GRID, LIST }
+
+enum class SortOrder(val label: String) {
+    DEFAULT("Padrão do servidor"),
+    NAME_ASC("Nome (A → Z)"),
+    NAME_DESC("Nome (Z → A)"),
+    NEWEST("Mais recentes"),
+    OLDEST("Mais antigos");
+}
 
 data class SeriesDetailUi(
     val name: String,

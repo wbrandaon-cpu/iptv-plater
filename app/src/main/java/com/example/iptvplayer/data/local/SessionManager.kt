@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.iptvplayer.data.model.Credentials
+import com.example.iptvplayer.data.model.SortOrder
+import com.example.iptvplayer.data.model.ViewMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -26,6 +28,8 @@ class SessionManager(private val context: Context) {
         val USERNAME = stringPreferencesKey("username")
         val PASSWORD = stringPreferencesKey("password")
         val EXP_DATE = stringPreferencesKey("exp_date")
+        val VIEW_MODE = stringPreferencesKey("view_mode")
+        val SORT_ORDER = stringPreferencesKey("sort_order")
     }
 
     private val prefs: Flow<Preferences> = context.dataStore.data
@@ -45,6 +49,23 @@ class SessionManager(private val context: Context) {
 
     /** Data de expiração da conta (timestamp Unix em segundos, como vem da API). */
     val expDate: Flow<String?> = prefs.map { it[Keys.EXP_DATE] }
+
+    /** Exibição escolhida (grade ou lista), lembrada entre aberturas do app. */
+    val viewMode: Flow<ViewMode> = prefs.map { p ->
+        p[Keys.VIEW_MODE]?.let { runCatching { ViewMode.valueOf(it) }.getOrNull() } ?: ViewMode.GRID
+    }
+
+    val sortOrder: Flow<SortOrder> = prefs.map { p ->
+        p[Keys.SORT_ORDER]?.let { runCatching { SortOrder.valueOf(it) }.getOrNull() } ?: SortOrder.DEFAULT
+    }
+
+    suspend fun setViewMode(mode: ViewMode) {
+        context.dataStore.edit { it[Keys.VIEW_MODE] = mode.name }
+    }
+
+    suspend fun setSortOrder(order: SortOrder) {
+        context.dataStore.edit { it[Keys.SORT_ORDER] = order.name }
+    }
 
     suspend fun save(credentials: Credentials, expDate: String?) {
         context.dataStore.edit { p ->

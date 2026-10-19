@@ -57,6 +57,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.iptvplayer.data.remote.ApiClient
+import com.example.iptvplayer.ui.components.ClockText
 
 /**
  * Player em tela cheia com Media3/ExoPlayer.
@@ -172,6 +173,9 @@ fun PlayerScreen(
                     this.player = player
                     useController = true
                     keepScreenOn = true
+                    // TV Box: o PlayerView precisa de foco para responder ao controle remoto
+                    isFocusable = true
+                    post { requestFocus() }
                     setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                     // Em canais ao vivo não faz sentido avançar/voltar
                     setShowFastForwardButton(!isLive)
@@ -209,6 +213,7 @@ fun PlayerScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                ClockText(color = Color.White, modifier = Modifier.padding(horizontal = 12.dp))
                 OutlinedButton(onClick = {
                     resizeMode = when (resizeMode) {
                         AspectRatioFrameLayout.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM

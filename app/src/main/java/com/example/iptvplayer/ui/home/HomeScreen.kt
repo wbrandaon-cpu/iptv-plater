@@ -13,26 +13,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,10 +45,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.iptvplayer.AppContainer
+import com.example.iptvplayer.BuildConfig
 import com.example.iptvplayer.data.model.ContentType
+import com.example.iptvplayer.data.remote.UpdateChecker
+import com.example.iptvplayer.ui.components.AppTopBar
+import com.example.iptvplayer.ui.components.focusHighlight
 import com.example.iptvplayer.ui.theme.LiveGradient
 import com.example.iptvplayer.ui.theme.MoviesGradient
 import com.example.iptvplayer.ui.theme.SeriesGradient
@@ -65,7 +74,6 @@ private val entries = listOf(
     DashboardEntry(ContentType.MOVIE, Icons.Rounded.Movie, MoviesGradient)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     container: AppContainer,
@@ -73,30 +81,48 @@ fun HomeScreen(
     onLoggedOut: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+    val snackbar = remember { SnackbarHostState() }
     val credentials by container.sessionManager.credentials.collectAsState(initial = null)
     val expDate by container.sessionManager.expDate.collectAsState(initial = null)
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    var update by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
+
+    // Verifica atualização do app ao abrir a tela inicial (silencioso)
+    LaunchedEffect(Unit) {
+        update = UpdateChecker.latest()?.takeIf { it.isNewer }
+    }
+
+    val subtitle = buildString {
+        credentials?.let { append("Olá, ${it.username}") }
+        formatExpiration(expDate)?.let { append("  •  $it") }
+        append("  •  v${BuildConfig.VERSION_NAME}")
+    }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("IPTV Player", fontWeight = FontWeight.Bold)
-                        val subtitle = buildString {
-                            credentials?.let { append("Olá, ${it.username}") }
-                            formatExpiration(expDate)?.let { append("  •  $it") }
-                        }
-                        if (subtitle.isNotEmpty()) {
-                            Text(
-                                subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
+            AppTopBar(
+                title = "IPTV Player",
+                subtitle = subtitle,
                 actions = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            snackbar.showSnackbar("Verificando atualizações...")
+                        }
+                        scope.launch {
+                            val latest = UpdateChecker.latest()
+                            snackbar.currentSnackbarData?.dismiss()
+                            when {
+                                latest == null -> snackbar.showSnackbar("Não foi possível verificar agora.")
+                                latest.isNewer -> update = latest
+                                else -> snackbar.showSnackbar("Você já está na versão mais recente (v${BuildConfig.VERSION_NAME}).")
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.SystemUpdate, contentDescription = "Atualizar aplicativo")
+                    }
                     IconButton(onClick = { confirmLogout = true }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sair")
                     }
@@ -104,25 +130,34 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        BoxWithConstraints(
+        Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
         ) {
-            val isWide = maxWidth > maxHeight
-            if (isWide) {
-                // Paisagem / TV: cards lado a lado
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    entries.forEach { e ->
-                        DashboardCard(e, Modifier.weight(1f).fillMaxHeight()) { onOpen(e.type) }
+            update?.let { info ->
+                UpdateBanner(info) { uriHandler.openUri(UpdateChecker.DOWNLOAD_URL) }
+            }
+
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                val isWide = maxWidth > maxHeight
+                if (isWide) {
+                    // Paisagem / TV Box: cards lado a lado
+                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        entries.forEach { e ->
+                            DashboardCard(e, Modifier.weight(1f).fillMaxHeight()) { onOpen(e.type) }
+                        }
                     }
-                }
-            } else {
-                // Retrato: cards empilhados
-                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    entries.forEach { e ->
-                        DashboardCard(e, Modifier.weight(1f).fillMaxWidth()) { onOpen(e.type) }
+                } else {
+                    // Retrato: cards empilhados
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        entries.forEach { e ->
+                            DashboardCard(e, Modifier.weight(1f).fillMaxWidth()) { onOpen(e.type) }
+                        }
                     }
                 }
             }
@@ -152,8 +187,33 @@ fun HomeScreen(
 }
 
 @Composable
+private fun UpdateBanner(info: UpdateChecker.UpdateInfo, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .focusHighlight(shape)
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.SystemUpdate, contentDescription = null)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Nova versão v${info.versionName} disponível", fontWeight = FontWeight.Bold)
+                Text("Toque para baixar e instalar a atualização", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
 private fun DashboardCard(entry: DashboardEntry, modifier: Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(24.dp)) {
+    val shape = RoundedCornerShape(24.dp)
+    Surface(onClick = onClick, modifier = modifier.focusHighlight(shape), shape = shape) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -161,11 +221,11 @@ private fun DashboardCard(entry: DashboardEntry, modifier: Modifier, onClick: ()
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(entry.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(64.dp))
+                Icon(entry.icon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(64.dp))
                 Spacer(Modifier.height(12.dp))
                 Text(
                     entry.type.title,
-                    color = Color.White,
+                    color = Color.Black,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
                 )

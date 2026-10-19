@@ -38,7 +38,9 @@ data class LiveStreamDto(
     @SerializedName("stream_id") val streamId: String?,
     @SerializedName("name") val name: String?,
     @SerializedName("stream_icon") val icon: String?,
-    @SerializedName("category_id") val categoryId: String?
+    @SerializedName("category_id") val categoryId: String?,
+    @SerializedName("num") val num: String?,
+    @SerializedName("added") val added: String?
 )
 
 data class VodStreamDto(
@@ -46,14 +48,18 @@ data class VodStreamDto(
     @SerializedName("name") val name: String?,
     @SerializedName("stream_icon") val icon: String?,
     @SerializedName("container_extension") val extension: String?,
-    @SerializedName("rating") val rating: String?
+    @SerializedName("rating") val rating: String?,
+    @SerializedName("num") val num: String?,
+    @SerializedName("added") val added: String?
 )
 
 data class SeriesDto(
     @SerializedName("series_id") val seriesId: String?,
     @SerializedName("name") val name: String?,
     @SerializedName("cover") val cover: String?,
-    @SerializedName("plot") val plot: String?
+    @SerializedName("plot") val plot: String?,
+    @SerializedName("num") val num: String?,
+    @SerializedName("last_modified") val lastModified: String?
 )
 
 /**

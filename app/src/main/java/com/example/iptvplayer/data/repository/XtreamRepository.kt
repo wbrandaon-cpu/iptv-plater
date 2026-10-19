@@ -59,6 +59,11 @@ class XtreamRepository(private val api: XtreamApi) {
         credentials = null
     }
 
+    /** Descarta as listas em memória para buscar tudo de novo no servidor. */
+    fun clearCache() {
+        cache.clear()
+    }
+
     // ------------------------------------------------------------- Catálogo
 
     suspend fun loadCategories(type: ContentType): List<CategoryUi> = cached("cat_$type") {
@@ -77,21 +82,21 @@ class XtreamRepository(private val api: XtreamApi) {
             val url = apiUrl(c)
             when (type) {
                 ContentType.LIVE -> api.getLiveStreams(url, c.username, c.password, categoryId)
-                    .mapNotNull { s ->
-                        val id = s.streamId ?: return@mapNotNull null
-                        ContentItem(id, s.name.clean(), s.icon.nullIfBlank(), "m3u8", type)
+                    .mapIndexedNotNull { i, s ->
+                        val id = s.streamId ?: return@mapIndexedNotNull null
+                        ContentItem(id, s.name.clean(), s.icon.nullIfBlank(), "m3u8", type, i, s.added?.toLongOrNull())
                     }
 
                 ContentType.MOVIE -> api.getVodStreams(url, c.username, c.password, categoryId)
-                    .mapNotNull { s ->
-                        val id = s.streamId ?: return@mapNotNull null
-                        ContentItem(id, s.name.clean(), s.icon.nullIfBlank(), s.extension.nullIfBlank() ?: "mp4", type)
+                    .mapIndexedNotNull { i, s ->
+                        val id = s.streamId ?: return@mapIndexedNotNull null
+                        ContentItem(id, s.name.clean(), s.icon.nullIfBlank(), s.extension.nullIfBlank() ?: "mp4", type, i, s.added?.toLongOrNull())
                     }
 
                 ContentType.SERIES -> api.getSeries(url, c.username, c.password, categoryId)
-                    .mapNotNull { s ->
-                        val id = s.seriesId ?: return@mapNotNull null
-                        ContentItem(id, s.name.clean(), s.cover.nullIfBlank(), null, type)
+                    .mapIndexedNotNull { i, s ->
+                        val id = s.seriesId ?: return@mapIndexedNotNull null
+                        ContentItem(id, s.name.clean(), s.cover.nullIfBlank(), null, type, i, s.lastModified?.toLongOrNull())
                     }
             }
         }

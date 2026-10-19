@@ -5,25 +5,38 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-val AccentRed = Color(0xFFE50914)
-val LiveGradient = listOf(Color(0xFFE50914), Color(0xFF8E0E00))
-val SeriesGradient = listOf(Color(0xFF6A11CB), Color(0xFF2575FC))
-val MoviesGradient = listOf(Color(0xFFF7971E), Color(0xFFD35400))
+// Paleta preto + verde
+val Green = Color(0xFF00E676)
+val GreenDark = Color(0xFF00A152)
+val GreenDeep = Color(0xFF003D1F)
+val Black = Color(0xFF000000)
+val Panel = Color(0xFF0B0F0C)
+val PanelLight = Color(0xFF141B16)
+
+val LiveGradient = listOf(Color(0xFF00E676), Color(0xFF005C2E))
+val SeriesGradient = listOf(Color(0xFF1DE9B6), Color(0xFF004D40))
+val MoviesGradient = listOf(Color(0xFF76FF03), Color(0xFF1B5E20))
 
 private val DarkColors = darkColorScheme(
-    primary = AccentRed,
-    onPrimary = Color.White,
-    secondary = Color(0xFF2575FC),
-    background = Color(0xFF0F0F12),
-    onBackground = Color(0xFFECECEC),
-    surface = Color(0xFF17171C),
-    onSurface = Color(0xFFECECEC),
-    surfaceVariant = Color(0xFF24242B),
-    onSurfaceVariant = Color(0xFFB8B8C2),
+    primary = Green,
+    onPrimary = Black,
+    primaryContainer = GreenDeep,
+    onPrimaryContainer = Green,
+    secondary = GreenDark,
+    onSecondary = Black,
+    background = Black,
+    onBackground = Color(0xFFE8F5E9),
+    surface = Panel,
+    onSurface = Color(0xFFE8F5E9),
+    surfaceVariant = PanelLight,
+    onSurfaceVariant = Color(0xFF9EB8A5),
+    surfaceContainer = Panel,
+    surfaceContainerHigh = PanelLight,
+    outline = Color(0xFF2E4A36),
     error = Color(0xFFFF6B6B)
 )
 
-/** App de IPTV: tema escuro sempre (melhor para assistir vídeo). */
+/** Tema escuro preto e verde (melhor para assistir vídeo e para TV Box). */
 @Composable
 fun IptvTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = DarkColors, content = content)

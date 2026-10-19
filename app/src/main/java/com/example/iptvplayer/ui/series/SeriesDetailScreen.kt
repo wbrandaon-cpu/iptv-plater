@@ -45,7 +45,7 @@ import com.example.iptvplayer.AppContainer
 import com.example.iptvplayer.data.model.EpisodeUi
 import com.example.iptvplayer.data.model.SeriesDetailUi
 import com.example.iptvplayer.data.repository.XtreamRepository
-import com.example.iptvplayer.ui.components.BackTopBar
+import com.example.iptvplayer.ui.components.AppTopBar
 import com.example.iptvplayer.ui.components.EmptyView
 import com.example.iptvplayer.ui.components.ErrorView
 import com.example.iptvplayer.ui.components.LoadingView
@@ -86,7 +86,7 @@ fun SeriesDetailScreen(
     val current = vm.state
     val title = if (current is UiState.Success) current.data.name.ifBlank { fallbackTitle } else fallbackTitle
 
-    Scaffold(topBar = { BackTopBar(title, onBack) }) { padding ->
+    Scaffold(topBar = { AppTopBar(title = title, onBack = onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             when (val s = vm.state) {
                 UiState.Loading -> LoadingView("Carregando episódios...")
