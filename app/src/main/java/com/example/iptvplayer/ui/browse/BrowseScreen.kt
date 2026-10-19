@@ -524,9 +524,9 @@ private fun Thumbnail(item: ContentItem, modifier: Modifier) {
     var index by remember(candidates) { mutableIntStateOf(0) }
     val url = candidates.getOrNull(index)
 
-    // Logos ficam sobre fundo claro para as cores originais aparecerem
-    // (logos escuros sumiam no fundo preto). Capas de filmes/séries seguem no escuro.
-    val background = if (isLive) Color(0xFFF1F4F2) else Color(0xFF0F1A12)
+    // Logos de canais: fundo transparente (o logo aparece direto sobre o card).
+    // Capas de filmes/séries mantêm um fundo escuro enquanto carregam.
+    val background = if (isLive) Color.Transparent else Color(0xFF0F1A12)
 
     Box(
         modifier
@@ -570,7 +570,7 @@ private fun NamePlaceholder(name: String, isLive: Boolean) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             initials,
-            color = if (isLive) Color(0xFF00A152) else MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold
         )
