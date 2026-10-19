@@ -26,6 +26,7 @@ data class UserInfoDto(
 data class ServerInfoDto(
     @SerializedName("url") val url: String?,
     @SerializedName("port") val port: String?,
+    @SerializedName("https_port") val httpsPort: String?,
     @SerializedName("server_protocol") val protocol: String?
 )
 

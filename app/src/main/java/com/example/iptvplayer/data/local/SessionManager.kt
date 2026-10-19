@@ -35,6 +35,7 @@ class SessionManager(private val context: Context) {
         val VIEW_MODE = stringPreferencesKey("view_mode")
         val SORT_ORDER = stringPreferencesKey("sort_order")
         val FAVORITES = stringPreferencesKey("favorites_v1")
+        val ALT_SERVERS = stringPreferencesKey("alt_servers")
     }
 
     private val gson = Gson()
@@ -72,6 +73,15 @@ class SessionManager(private val context: Context) {
 
     suspend fun setSortOrder(order: SortOrder) {
         context.dataStore.edit { it[Keys.SORT_ORDER] = order.name }
+    }
+
+    /** Portas/endereços alternativos que o servidor informou no último login. */
+    val alternativeServers: Flow<List<String>> = prefs.map { p ->
+        p[Keys.ALT_SERVERS]?.split('\n')?.filter { it.isNotBlank() }.orEmpty()
+    }
+
+    suspend fun setAlternativeServers(list: List<String>) {
+        context.dataStore.edit { it[Keys.ALT_SERVERS] = list.joinToString("\n") }
     }
 
     /** Favoritos de todos os tipos, do mais recente para o mais antigo. */

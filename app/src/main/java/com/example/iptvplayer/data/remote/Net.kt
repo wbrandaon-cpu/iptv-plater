@@ -45,6 +45,7 @@ object Net {
             .retryOnConnectionFailure(true)
             .followRedirects(true)
             .followSslRedirects(true)
+            .addInterceptor(ServerFailover.interceptor) // portas alternativas do servidor
             .addInterceptor(userAgent)
             .build()
     }

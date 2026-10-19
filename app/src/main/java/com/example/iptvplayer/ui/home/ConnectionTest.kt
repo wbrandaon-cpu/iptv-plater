@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.iptvplayer.data.model.Credentials
 import com.example.iptvplayer.data.remote.Net
+import com.example.iptvplayer.data.remote.ServerFailover
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -158,29 +159,32 @@ private suspend fun runConnectionTest(
         "Isso costuma acontecer quando a operadora bloqueia o servidor. Teste em outra rede e, " +
         "se só falhar nesta, fale com o seu provedor da lista."
 
-    // 4) Conexão na porta do servidor (IPv4 primeiro, depois IPv6)
-    val ordered = ips.sortedBy { if (it is Inet4Address) 0 else 1 }
-    var connectedVia: String? = null
-    var elapsed = 0L
-    for (ip in ordered) {
-        val start = System.currentTimeMillis()
-        val ok = runCatching { Socket().use { it.connect(InetSocketAddress(ip, port), 8_000) } }.isSuccess
-        if (ok) {
-            elapsed = System.currentTimeMillis() - start
-            connectedVia = if (ip is Inet4Address) "IPv4" else "IPv6"
-            break
+    // 4) Conexão nas portas do servidor: a principal e as alternativas que ele informou
+    val bases = ServerFailover.allBases.ifEmpty { listOfNotNull(credentials.serverUrl.toHttpUrlOrNull()) }
+    var anyPortOk = false
+    var mainPortOk = false
+    for ((i, base) in bases.withIndex()) {
+        val addresses = runCatching { InetAddress.getAllByName(base.host).toList() }.getOrDefault(emptyList())
+            .sortedBy { if (it is Inet4Address) 0 else 1 }
+        var via: String? = null
+        var ms = 0L
+        for (ip in addresses) {
+            val t0 = System.currentTimeMillis()
+            if (runCatching { Socket().use { it.connect(InetSocketAddress(ip, base.port), 6_000) } }.isSuccess) {
+                ms = System.currentTimeMillis() - t0
+                via = if (ip is Inet4Address) "IPv4" else "IPv6"
+                break
+            }
+        }
+        val label = if (i == 0) "Porta principal ${base.port} (${base.scheme})" else "Porta alternativa ${base.port} (${base.scheme})"
+        report(TestStep(label, via != null, via?.let { "Conectou via $it em $ms ms" } ?: "Sem resposta nesta rede"))
+        if (via != null) {
+            anyPortOk = true
+            if (i == 0) mainPortOk = true
         }
     }
-    report(
-        TestStep(
-            "Conectar na porta $port",
-            connectedVia != null,
-            connectedVia?.let { "OK via $it em ${elapsed} ms" } ?: "Sem resposta na porta $port"
-        )
-    )
-    if (connectedVia == null) return@withContext "O servidor foi encontrado, mas não aceita conexão nesta rede " +
-        "(porta $port). Se funciona no Wi-Fi, a operadora pode estar bloqueando esse servidor ou essa porta. " +
-        "Fale com o seu provedor da lista."
+    if (!anyPortOk) return@withContext "Nenhuma porta do servidor respondeu nesta rede. O servidor não oferece outra " +
+        "porta que funcione aqui (ou está bloqueado por completo pela operadora). Fale com o seu provedor da lista."
 
     // 5) Login na API
     val apiUrl = "${credentials.serverUrl}/player_api.php".toHttpUrlOrNull()?.newBuilder()
@@ -207,7 +211,9 @@ private suspend fun runConnectionTest(
             }
         )
     )
+    val portNote = if (!mainPortOk) " A porta principal está bloqueada nesta rede; o app está usando uma porta alternativa." else ""
     when {
+        auth && !mainPortOk -> "Funcionando pela porta alternativa.$portNote"
         auth && apiMs > 5_000 -> "Tudo funcionando, mas esta rede está lenta para chegar ao servidor ($apiMs ms). " +
             "Os canais podem demorar um pouco para abrir."
         auth -> "Tudo funcionando nesta rede ($netType)."

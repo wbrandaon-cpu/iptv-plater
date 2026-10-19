@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.iptvplayer.AppContainer
 import com.example.iptvplayer.data.model.ContentType
+import com.example.iptvplayer.data.remote.ServerFailover
 import com.example.iptvplayer.ui.browse.BrowseScreen
 import com.example.iptvplayer.ui.home.HomeScreen
 import com.example.iptvplayer.ui.login.LoginScreen
@@ -46,6 +47,13 @@ fun AppNavHost(container: AppContainer) {
     val startDestination by produceState<String?>(initialValue = null) {
         val saved = container.sessionManager.credentials.first()
         container.repository.credentials = saved
+        if (saved != null) {
+            val alternatives = container.sessionManager.alternativeServers.first()
+            ServerFailover.configure(
+                saved.serverUrl,
+                alternatives.ifEmpty { ServerFailover.alternativesFrom(saved.serverUrl, null) }
+            )
+        }
         value = if (saved != null) Routes.HOME else Routes.LOGIN
     }
 

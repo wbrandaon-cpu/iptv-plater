@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.iptvplayer.data.local.SessionManager
 import com.example.iptvplayer.data.model.Credentials
+import com.example.iptvplayer.data.remote.ServerFailover
 import com.example.iptvplayer.data.repository.XtreamRepository
 import com.example.iptvplayer.util.ServerUrlParser
 import com.example.iptvplayer.util.toUserMessage
@@ -78,8 +79,19 @@ class LoginViewModel(
         viewModelScope.launch {
             try {
                 val credentials = Credentials(parsed.baseUrl, user, pass)
+                // Antes do login: usa as portas alternativas já conhecidas deste servidor
+                // (ou ao menos a porta HTTPS padrão), caso a porta principal esteja bloqueada.
+                val known = if (session.lastServer.first() == parsed.baseUrl) session.alternativeServers.first() else emptyList()
+                ServerFailover.configure(
+                    parsed.baseUrl,
+                    known.ifEmpty { ServerFailover.alternativesFrom(parsed.baseUrl, null) }
+                )
                 val info = repository.login(credentials)
                 session.save(credentials, info.expDate)
+                // Depois do login: guarda as portas que o servidor informou
+                val alternatives = ServerFailover.alternativesFrom(parsed.baseUrl, repository.lastServerInfo)
+                session.setAlternativeServers(alternatives)
+                ServerFailover.configure(parsed.baseUrl, alternatives)
                 state = state.copy(isLoading = false)
                 onSuccess()
             } catch (e: CancellationException) {

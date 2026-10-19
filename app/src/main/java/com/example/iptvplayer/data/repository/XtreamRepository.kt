@@ -12,6 +12,7 @@ import com.example.iptvplayer.data.remote.XtreamApi
 import com.example.iptvplayer.data.remote.dto.EpisodeDto
 import com.example.iptvplayer.data.remote.dto.SeriesInfoDto
 import com.example.iptvplayer.data.remote.dto.UserInfoDto
+import com.example.iptvplayer.data.remote.dto.ServerInfoDto
 import com.example.iptvplayer.util.AppException
 import com.google.gson.Gson
 import com.google.gson.JsonElement
@@ -42,6 +43,11 @@ class XtreamRepository(private val api: XtreamApi) {
     // ------------------------------------------------------------------ Login
 
     /** Valida usuário/senha no servidor. Lança AppException em caso de falha. */
+    /** server_info do último login (portas alternativas do servidor). */
+    @Volatile
+    var lastServerInfo: ServerInfoDto? = null
+        private set
+
     suspend fun login(c: Credentials): UserInfoDto {
         val response = api.authenticate(apiUrl(c), c.username, c.password)
         val info = response.userInfo
@@ -52,6 +58,7 @@ class XtreamRepository(private val api: XtreamApi) {
             throw AppException("Conta com status \"$status\". Contate seu provedor.")
         }
         credentials = c
+        lastServerInfo = response.serverInfo
         return info
     }
 
