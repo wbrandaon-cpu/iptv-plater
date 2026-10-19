@@ -264,6 +264,7 @@ private fun DashboardCard(entry: DashboardEntry, big: Boolean, modifier: Modifie
             val byWidth = maxWidth * 0.86f / (label.length * 0.68f)
             val byHeight = maxHeight * 0.16f
             val fontSize = with(density) { minOf(byWidth, byHeight).coerceAtLeast(9.dp).toSp() }
+            val spacing = maxHeight * 0.05f
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Ícone dentro de um círculo com contorno, como no modelo
@@ -281,7 +282,7 @@ private fun DashboardCard(entry: DashboardEntry, big: Boolean, modifier: Modifie
                         modifier = Modifier.size(iconSize)
                     )
                 }
-                Spacer(Modifier.height(maxHeight * 0.05f))
+                Spacer(Modifier.height(spacing))
                 Text(
                     label,
                     color = Color.White,
