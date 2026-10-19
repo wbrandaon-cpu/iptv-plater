@@ -51,7 +51,10 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import com.example.iptvplayer.data.remote.Net
+import com.example.iptvplayer.ui.components.isOnMobileData
+import java.util.concurrent.TimeUnit
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -75,12 +78,20 @@ import kotlinx.coroutines.launch
 @OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
-    urls: List<String>,
+    streamUrls: List<String>,
     title: String,
     isLive: Boolean,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Dados móveis (4G/5G): a rede oscila mais. Usamos HLS primeiro (baixa o vídeo
+    // em pedaços, lida melhor com a rede da operadora) e um buffer maior.
+    // No Wi-Fi: MPEG-TS direto primeiro e buffer curto (menos atraso).
+    val onMobile = remember { context.isOnMobileData() }
+    val urls = remember(streamUrls, onMobile) {
+        if (isLive && onMobile) streamUrls.sortedBy { if (it.endsWith(".m3u8")) 0 else 1 } else streamUrls
+    }
     var urlIndex by remember { mutableIntStateOf(0) }
     var errorMessage by remember { mutableStateOf<String?>(if (urls.isEmpty()) "Sessão inválida. Faça login novamente." else null) }
     var controlsVisible by remember { mutableStateOf(true) }
@@ -90,11 +101,13 @@ fun PlayerScreen(
     var reconnectAttempts by remember { mutableIntStateOf(0) }
 
     val player = remember {
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent(ApiClient.USER_AGENT)
-            .setAllowCrossProtocolRedirects(true) // servidores IPTV redirecionam muito (http <-> https)
-            .setConnectTimeoutMs(10_000)
-            .setReadTimeoutMs(20_000)
+        // Mesmo cliente HTTP do app: IPv4 primeiro (evita travar em IPv6 quebrado
+        // nas redes móveis), segue redirecionamentos e descarta conexões ao trocar de rede.
+        val httpFactory = OkHttpDataSource.Factory(
+            Net.client.newBuilder()
+                .readTimeout(if (onMobile) 30L else 20L, TimeUnit.SECONDS)
+                .build()
+        ).setUserAgent(ApiClient.USER_AGENT)
 
         // MPEG-TS: começa a exibir sem esperar um quadro-chave completo (troca de canal mais rápida)
         val extractors = DefaultExtractorsFactory().setTsExtractorFlags(
@@ -104,18 +117,19 @@ fun PlayerScreen(
 
         val mediaSourceFactory = DefaultMediaSourceFactory(httpFactory, extractors)
             // HLS ao vivo (fallback): fica perto do "ao vivo" e acelera levemente para alcançar
-            .setLiveTargetOffsetMs(3_000)
+            .setLiveTargetOffsetMs(if (onMobile) 6_000 else 3_000)
             .setLiveMinSpeed(0.97f)
             .setLiveMaxSpeed(1.05f)
 
-        // Buffer curto no ao vivo = imagem aparece rápido e com pouco atraso.
-        // Filmes/séries usam buffer maior para não travar.
+        // Wi-Fi + ao vivo: buffer curto = imagem rápida e pouco atraso.
+        // Dados móveis: um pouco mais de reserva para não travar quando o sinal oscila.
+        // Filmes/séries: buffer maior.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ if (isLive) 2_000 else 15_000,
-                /* maxBufferMs = */ if (isLive) 15_000 else 50_000,
-                /* bufferForPlaybackMs = */ if (isLive) 500 else 1_500,
-                /* bufferForPlaybackAfterRebufferMs = */ if (isLive) 1_500 else 3_000
+                /* minBufferMs = */ when { !isLive -> 15_000; onMobile -> 6_000; else -> 2_000 },
+                /* maxBufferMs = */ when { !isLive -> 50_000; onMobile -> 30_000; else -> 15_000 },
+                /* bufferForPlaybackMs = */ when { !isLive -> 1_500; onMobile -> 1_500; else -> 500 },
+                /* bufferForPlaybackAfterRebufferMs = */ when { !isLive -> 3_000; onMobile -> 3_000; else -> 1_500 }
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
@@ -332,7 +346,7 @@ fun PlayerScreen(
     }
 }
 
-private const val MAX_RECONNECTS = 3
+private const val MAX_RECONNECTS = 5
 
 private val NETWORK_ERRORS = setOf(
     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,

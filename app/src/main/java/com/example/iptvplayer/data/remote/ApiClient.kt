@@ -2,39 +2,24 @@ package com.example.iptvplayer.data.remote
 
 import com.example.iptvplayer.BuildConfig
 import com.google.gson.GsonBuilder
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
     /** Alguns painéis bloqueiam o User-Agent padrão do OkHttp; usamos um próprio. */
-    const val USER_AGENT = "IPTVPlayer/1.0 (Linux; Android)"
+    const val USER_AGENT = Net.USER_AGENT
 
     fun create(): XtreamApi {
-        val userAgent = Interceptor { chain ->
-            chain.proceed(
-                chain.request().newBuilder()
-                    .header("User-Agent", USER_AGENT)
-                    .build()
-            )
-        }
-
         // Atenção: o log BASIC mostra a URL (com usuário/senha). Só ativo em debug.
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
             else HttpLoggingInterceptor.Level.NONE
         }
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(90, TimeUnit.SECONDS) // listas de VOD podem ter dezenas de MB
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .addInterceptor(userAgent)
+        // Mesmo cliente do resto do app (IPv4 primeiro, timeouts para 4G/5G)
+        val client = Net.client.newBuilder()
             .addInterceptor(logging)
             .build()
 

@@ -9,9 +9,8 @@ import coil.disk.DiskCache
 import com.example.iptvplayer.data.local.SessionManager
 import com.example.iptvplayer.data.logos.ChannelLogos
 import com.example.iptvplayer.data.remote.ApiClient
+import com.example.iptvplayer.data.remote.Net
 import com.example.iptvplayer.data.repository.XtreamRepository
-import okhttp3.OkHttpClient
-import java.util.concurrent.TimeUnit
 
 /**
  * Application com um "container" simples de dependências (injeção manual).
@@ -26,6 +25,8 @@ class IptvApp : Application(), ImageLoaderFactory {
         container = AppContainer(this)
         // Carrega o mapa de logos oficiais em segundo plano
         Thread { ChannelLogos.load(this) }.start()
+        // Limpa conexões antigas ao trocar entre Wi-Fi e dados móveis
+        Net.watchNetworkChanges(this)
     }
 
     /**
@@ -38,11 +39,7 @@ class IptvApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .components { add(SvgDecoder.Factory()) }
         .okHttpClient {
-            OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS)
-                .followRedirects(true)
-                .followSslRedirects(true)
+            Net.client.newBuilder()
                 .addInterceptor { chain ->
                     chain.proceed(
                         chain.request().newBuilder()

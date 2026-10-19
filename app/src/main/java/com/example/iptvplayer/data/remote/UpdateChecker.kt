@@ -4,7 +4,6 @@ import com.example.iptvplayer.BuildConfig
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
@@ -24,10 +23,7 @@ object UpdateChecker {
     }
 
     private val client by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .build()
+        Net.client.newBuilder().readTimeout(20, TimeUnit.SECONDS).build()
     }
 
     /** Retorna a última versão publicada, ou null se não conseguir verificar. */

@@ -144,7 +144,7 @@ fun AppNavHost(container: AppContainer) {
                 }.getOrDefault(emptyList())
             }
             PlayerScreen(
-                urls = urls,
+                streamUrls = urls,
                 title = args.getString("title").orEmpty(),
                 isLive = type == ContentType.LIVE,
                 onBack = { nav.popBackStack() }

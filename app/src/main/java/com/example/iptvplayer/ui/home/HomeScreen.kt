@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -91,6 +92,7 @@ fun HomeScreen(
     val credentials by container.sessionManager.credentials.collectAsState(initial = null)
     val expDate by container.sessionManager.expDate.collectAsState(initial = null)
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    var showConnectionTest by remember { mutableStateOf(false) }
     var update by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
 
     // Verifica atualização do app ao abrir a tela inicial (silencioso)
@@ -166,6 +168,7 @@ fun HomeScreen(
                     Row(m, horizontalArrangement = Arrangement.spacedBy(gap)) {
                         ShortcutButton("ATUALIZAR\nLISTAS", Icons.Default.Refresh, Modifier.weight(1f).fillMaxHeight(), refreshLists)
                         ShortcutButton("ATUALIZAR\nAPP", Icons.Default.SystemUpdate, Modifier.weight(1f).fillMaxHeight(), checkUpdate)
+                        ShortcutButton("TESTAR\nCONEXÃO", Icons.Default.NetworkCheck, Modifier.weight(1f).fillMaxHeight()) { showConnectionTest = true }
                         ShortcutButton("SAIR", Icons.AutoMirrored.Filled.Logout, Modifier.weight(1f).fillMaxHeight()) { confirmLogout = true }
                     }
                 }
@@ -196,6 +199,10 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showConnectionTest) {
+        ConnectionTestDialog(credentials) { showConnectionTest = false }
     }
 
     if (confirmLogout) {
