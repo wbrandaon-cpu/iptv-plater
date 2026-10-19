@@ -73,6 +73,8 @@ class XtreamRepository(private val api: XtreamApi) {
                 val id = dto.id ?: return@mapNotNull null
                 CategoryUi(id, dto.name?.trim().orEmpty().ifEmpty { "Sem nome" })
             }
+            // TV ao vivo: esconde categorias só de 4K (ex.: "CANAIS 4K", "UHD")
+            .filterNot { type == ContentType.LIVE && is4K(it.name) }
     }
 
     /** categoryId = null carrega todo o conteúdo do tipo. */
@@ -86,6 +88,8 @@ class XtreamRepository(private val api: XtreamApi) {
                         val id = s.streamId ?: return@mapIndexedNotNull null
                         ContentItem(id, s.name.clean(), s.icon.nullIfBlank(), "m3u8", type, i, s.added?.toLongOrNull())
                     }
+                    // Não traz canais 4K (também some de "Todos os canais")
+                    .filterNot { is4K(it.name) }
 
                 ContentType.MOVIE -> api.getVodStreams(url, c.username, c.password, categoryId)
                     .mapIndexedNotNull { i, s ->
@@ -203,6 +207,19 @@ class XtreamRepository(private val api: XtreamApi) {
     private suspend fun <T : Any> cached(key: String, loader: suspend () -> T): T {
         cache[key]?.let { return it as T }
         return loader().also { cache[key] = it }
+    }
+
+    /**
+     * Identifica canais/categorias 4K pelo nome, nos formatos usados pelos
+     * provedores: "4K", "[4K]", "UHD", "Ultra HD", "2160p", "ᵁᴴᴰ", "⁴ᴷ".
+     * Não confunde com "FHD", "HD" ou "SD".
+     */
+    private fun is4K(name: String): Boolean = FOUR_K_REGEX.containsMatchIn(name)
+
+    private companion object {
+        val FOUR_K_REGEX = Regex(
+            """(?i)(?<![a-z0-9])(4k|uhd|ultra\s*hd|2160p?)(?![a-z0-9])|ᵁᴴᴰ|⁴ᴷ"""
+        )
     }
 
     private fun String?.clean(): String = this?.trim().orEmpty()
