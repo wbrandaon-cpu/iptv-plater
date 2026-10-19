@@ -90,6 +90,7 @@ dependencies {
 
     // ---------- Imagens (logos / capas) ----------
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-svg:2.7.0")
 
     // ---------- Player: Media3 (ExoPlayer) ----------
     val media3 = "1.5.1"

@@ -26,6 +26,11 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Gerar mapa de logos oficiais dos canais
+        run: |
+          mkdir -p app/src/main/assets
+          python3 tools/build_logo_map.py app/src/main/assets/channel_logos.json
+
       - name: Compilar APK
         run: gradle assembleDebug --no-daemon --stacktrace
 

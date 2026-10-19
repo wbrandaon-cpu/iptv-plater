@@ -67,9 +67,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.iptvplayer.AppContainer
+import com.example.iptvplayer.data.logos.ChannelLogos
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import com.example.iptvplayer.data.model.ContentItem
 import com.example.iptvplayer.data.model.ContentType
 import com.example.iptvplayer.data.model.SortOrder
@@ -506,20 +509,70 @@ private fun FavoriteBadge(modifier: Modifier = Modifier) {
 @Composable
 private fun Thumbnail(item: ContentItem, modifier: Modifier) {
     val isLive = item.type == ContentType.LIVE
-    val fallback = rememberVectorPainter(if (isLive) Icons.Rounded.LiveTv else Icons.Rounded.Movie)
-    AsyncImage(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data(item.imageUrl)
-            .crossfade(true)
-            .build(),
-        contentDescription = item.name,
-        placeholder = fallback,
-        error = fallback,
-        fallback = fallback,
-        // Logos de canais: inteiros (Fit). Capas: preenchendo (Crop).
-        contentScale = if (isLive) ContentScale.Fit else ContentScale.Crop,
-        modifier = modifier
-            .background(Color(0xFF0F1A12), RoundedCornerShape(8.dp))
-            .padding(if (isLive) 6.dp else 0.dp)
-    )
+
+    // Canais: tenta o logo oficial colorido (banco iptv-org) e o logo do provedor.
+    // Se o nome bateu exatamente, o oficial vem primeiro; senão, o do provedor.
+    val candidates = remember(item.id, item.imageUrl, item.name) {
+        if (!isLive) listOfNotNull(item.imageUrl)
+        else {
+            val official = ChannelLogos.find(item.name)
+            val ordered = if (official?.exact == true) listOf(official.url, item.imageUrl)
+            else listOf(item.imageUrl, official?.url)
+            ordered.filterNotNull().filter { it.isNotBlank() }.distinct()
+        }
+    }
+    var index by remember(candidates) { mutableIntStateOf(0) }
+    val url = candidates.getOrNull(index)
+
+    // Logos ficam sobre fundo claro para as cores originais aparecerem
+    // (logos escuros sumiam no fundo preto). Capas de filmes/séries seguem no escuro.
+    val background = if (isLive) Color(0xFFF1F4F2) else Color(0xFF0F1A12)
+
+    Box(
+        modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(background),
+        contentAlignment = Alignment.Center
+    ) {
+        if (url == null) {
+            NamePlaceholder(item.name, isLive)
+        } else {
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(url)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = item.name,
+                contentScale = if (isLive) ContentScale.Fit else ContentScale.Crop,
+                loading = { NamePlaceholder(item.name, isLive) },
+                error = {
+                    // Falhou: tenta a próxima opção de logo, ou mostra as iniciais
+                    if (index < candidates.lastIndex) {
+                        LaunchedEffect(index) { index++ }
+                    }
+                    NamePlaceholder(item.name, isLive)
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(if (isLive) 8.dp else 0.dp)
+            )
+        }
+    }
+}
+
+/** Sem logo: mostra as iniciais do canal em verde (em vez de um ícone apagado). */
+@Composable
+private fun NamePlaceholder(name: String, isLive: Boolean) {
+    val initials = remember(name) {
+        ChannelLogos.tokens(name).take(2).joinToString("") { it.take(1) }.uppercase()
+            .ifEmpty { name.take(2).uppercase() }
+    }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            initials,
+            color = if (isLive) Color(0xFF00A152) else MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold
+        )
+    }
 }
