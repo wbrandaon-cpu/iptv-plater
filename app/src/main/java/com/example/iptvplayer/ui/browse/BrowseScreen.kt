@@ -71,6 +71,10 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.iptvplayer.AppContainer
 import com.example.iptvplayer.data.logos.ChannelLogos
+import com.example.iptvplayer.ui.components.LogoTone
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import com.example.iptvplayer.data.model.ContentItem
@@ -280,8 +284,9 @@ private fun CategoryEntry(name: String, selected: Boolean, compact: Boolean, onC
     Surface(
         onClick = onClick,
         shape = shape,
-        color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        // Categoria selecionada: verde com 50% de transparência
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -524,9 +529,15 @@ private fun Thumbnail(item: ContentItem, modifier: Modifier) {
     var index by remember(candidates) { mutableIntStateOf(0) }
     val url = candidates.getOrNull(index)
 
-    // Logos de canais: fundo transparente (o logo aparece direto sobre o card).
-    // Capas de filmes/séries mantêm um fundo escuro enquanto carregam.
-    val background = if (isLive) Color.Transparent else Color(0xFF0F1A12)
+    // Logo preto/escuro: fundo branco com 50% de transparência para ele aparecer.
+    // Demais logos de canais: fundo transparente. Capas: fundo escuro enquanto carregam.
+    var darkLogo by remember(url) { mutableStateOf(url?.let { LogoTone.cached(it) } ?: false) }
+    val scope = rememberCoroutineScope()
+    val background = when {
+        darkLogo -> Color.White.copy(alpha = 0.5f)
+        isLive -> Color.Transparent
+        else -> Color(0xFF0F1A12)
+    }
 
     Box(
         modifier
@@ -541,9 +552,18 @@ private fun Thumbnail(item: ContentItem, modifier: Modifier) {
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(url)
                     .crossfade(true)
+                    .allowHardware(false) // permite analisar as cores do logo
                     .build(),
                 contentDescription = item.name,
                 contentScale = if (isLive) ContentScale.Fit else ContentScale.Crop,
+                onSuccess = { state ->
+                    if (LogoTone.cached(url) == null) {
+                        scope.launch(Dispatchers.Default) {
+                            val dark = LogoTone.isDark(url, state.result.drawable)
+                            if (dark) darkLogo = true
+                        }
+                    }
+                },
                 loading = { NamePlaceholder(item.name, isLive) },
                 error = {
                     // Falhou: tenta a próxima opção de logo, ou mostra as iniciais
