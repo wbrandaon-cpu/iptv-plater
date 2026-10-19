@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -247,22 +248,29 @@ private fun UpdateBanner(info: UpdateChecker.UpdateInfo, onClick: () -> Unit) {
 private fun DashboardCard(entry: DashboardEntry, big: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     Surface(onClick = onClick, modifier = modifier.focusHighlight(shape), shape = shape) {
-        Box(
+        BoxWithConstraints(
             Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(entry.gradient))
+                .background(Brush.verticalGradient(entry.gradient)),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                Modifier
-                    .align(Alignment.Center)
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            // Tudo é proporcional ao tamanho do card: ícone e nome preenchem o espaço
+            val density = LocalDensity.current
+            val side = minOf(maxWidth, maxHeight)
+            val circle = side * (if (big) 0.58f else 0.55f)
+            val iconSize = circle * 0.62f
+            val label = entry.type.title
+            // Fonte limitada pela largura (para caber o nome) e pela altura do card
+            val byWidth = maxWidth * 0.86f / (label.length * 0.68f)
+            val byHeight = maxHeight * 0.16f
+            val fontSize = with(density) { minOf(byWidth, byHeight).coerceAtLeast(9.dp).toSp() }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Ícone dentro de um círculo com contorno, como no modelo
                 Box(
                     Modifier
-                        .size(if (big) 96.dp else 64.dp)
-                        .border(3.dp, Color.White, CircleShape)
+                        .size(circle)
+                        .border(maxOf(3.dp, circle * 0.04f), Color.White, CircleShape)
                         .background(Color.White.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
@@ -270,23 +278,25 @@ private fun DashboardCard(entry: DashboardEntry, big: Boolean, modifier: Modifie
                         entry.icon,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(if (big) 52.dp else 34.dp)
+                        modifier = Modifier.size(iconSize)
                     )
                 }
-                Spacer(Modifier.height(if (big) 18.dp else 10.dp))
+                Spacer(Modifier.height(maxHeight * 0.05f))
                 Text(
-                    entry.type.title,
+                    label,
                     color = Color.White,
-                    style = if (big) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                    fontSize = fontSize,
                     fontWeight = FontWeight.ExtraBold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
     }
 }
 
-/** Botões menores da linha de baixo (atalhos). */
+/** Botões menores da linha de baixo (atalhos): ícone e texto preenchem o botão. */
 @Composable
 private fun ShortcutButton(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
@@ -297,22 +307,35 @@ private fun ShortcutButton(label: String, icon: ImageVector, modifier: Modifier,
         contentColor = Color.White,
         modifier = modifier.focusHighlight(shape)
     ) {
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                lineHeight = MaterialTheme.typography.labelLarge.fontSize
-            )
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val density = LocalDensity.current
+            val lines = label.lines()
+            val longest = lines.maxOf { it.length }
+            val iconSize = maxHeight * 0.5f
+            // Espaço para o texto: largura total menos o ícone e margens
+            val textWidth = (maxWidth - iconSize - 28.dp).coerceAtLeast(40.dp)
+            val byWidth = textWidth / (longest * 0.66f)
+            val byHeight = maxHeight * 0.78f / (lines.size * 1.15f)
+            val fontSize = with(density) { minOf(byWidth, byHeight).coerceAtLeast(9.dp).toSp() }
+
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    label,
+                    fontSize = fontSize,
+                    lineHeight = fontSize * 1.1f,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = lines.size,
+                    softWrap = false
+                )
+            }
         }
     }
 }
