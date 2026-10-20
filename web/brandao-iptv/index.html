@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brandão IPTV — Download do aplicativo</title>
+<meta name="description" content="Baixe o aplicativo Brandão IPTV para Android e TV Box, nas versões verde e rosa.">
+<meta name="theme-color" content="#000000">
+<style>
+  :root {
+    --bg: #000; --panel: #0d1310; --line: #24382b; --text: #eef7f0; --muted: #9db3a3;
+    --green: #00e676; --green-dark: #00473a; --pink: #ff4fa3; --pink-dark: #5c0f35;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 16px 48px; }
+  header { text-align: center; margin-bottom: 32px; }
+  .logo { width: 84px; height: 84px; border-radius: 22px; margin: 0 auto 14px;
+    background: linear-gradient(135deg, var(--green), var(--pink)); display: grid; place-items: center; }
+  .logo svg { width: 46px; height: 46px; }
+  h1 { font-size: clamp(30px, 6vw, 46px); margin: 0; letter-spacing: -0.5px; }
+  .tagline { color: var(--muted); margin: 8px 0 0; font-size: 17px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .card { border-radius: 22px; padding: 24px; display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 14px; border: 1px solid var(--line); }
+  .card.verde { background: linear-gradient(180deg, rgba(0,200,83,.28), var(--panel) 55%); }
+  .card.rosa  { background: linear-gradient(180deg, rgba(255,79,163,.28), var(--panel) 55%); }
+  .card h2 { margin: 0; font-size: 24px; }
+  .card p { margin: 0; color: var(--muted); }
+  .btn { display: inline-block; width: 100%; padding: 15px 18px; border-radius: 14px; font-weight: 800;
+    font-size: 17px; text-decoration: none; color: #000; }
+  .verde .btn { background: var(--green); }
+  .rosa .btn  { background: var(--pink); }
+  .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .qr { background: #fff; border-radius: 14px; padding: 10px; width: 180px; height: 180px; }
+  .qr img { width: 100%; height: 100%; display: block; }
+  .qr-label { font-size: 13px; color: var(--muted); }
+  .link { font-size: 12px; color: var(--muted); word-break: break-all; }
+  section.how { margin-top: 36px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 22px; padding: 24px; }
+  section.how h2 { margin: 0 0 14px; font-size: 22px; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+  .steps h3 { margin: 0 0 8px; font-size: 17px; color: var(--green); }
+  .steps ol { margin: 0; padding-left: 20px; color: var(--text); }
+  .steps li { margin-bottom: 6px; }
+  .note { margin-top: 18px; font-size: 14px; color: var(--muted); }
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 32px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <h1>Brandão IPTV</h1>
+      <p class="tagline">Aplicativo para Android e TV Box. Escolha a sua cor e instale.</p>
+    </header>
+
+    <div class="cards">
+      <div class="card verde">
+        <h2>Versão Verde</h2>
+        <p>Tema preto e verde</p>
+        <a class="btn" href="https://github.com/wbrandaon-cpu/iptv-plater/releases/latest/download/IPTVPlayer.apk">Baixar versão verde</a>
+        <div class="qr"><img src="qr-verde.svg" alt="QR Code para baixar a versão verde"></div>
+        <span class="qr-label">Ou aponte a câmera de outro celular</span>
+      </div>
+
+      <div class="card rosa">
+        <h2>Versão Rosa</h2>
+        <p>Tema preto e rosa</p>
+        <a class="btn" href="https://github.com/wbrandaon-cpu/iptv-plater/releases/latest/download/IPTVPlayer-Rosa.apk">Baixar versão rosa</a>
+        <div class="qr"><img src="qr-rosa.svg" alt="QR Code para baixar a versão rosa"></div>
+        <span class="qr-label">Ou aponte a câmera de outro celular</span>
+      </div>
+    </div>
+
+    <section class="how">
+      <h2>Como instalar</h2>
+      <div class="steps">
+        <div>
+          <h3>No celular</h3>
+          <ol>
+            <li>Toque em <strong>Baixar</strong> na versão que preferir.</li>
+            <li>Quando o download terminar, toque em <strong>Abrir</strong>.</li>
+            <li>Se aparecer um aviso, toque em <strong>Configurações</strong> e ative <strong>Permitir desta fonte</strong>.</li>
+            <li>Volte e toque em <strong>Instalar</strong>.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>Na TV Box</h3>
+          <ol>
+            <li>Instale o app <strong>Downloader</strong> pela loja da TV Box.</li>
+            <li>Abra o Downloader e digite o link da versão desejada (abaixo).</li>
+            <li>Confirme o download e toque em <strong>Instalar</strong>.</li>
+          </ol>
+          <p class="link">Verde: https://github.com/wbrandaon-cpu/iptv-plater/releases/latest/download/IPTVPlayer.apk</p>
+          <p class="link">Rosa: https://github.com/wbrandaon-cpu/iptv-plater/releases/latest/download/IPTVPlayer-Rosa.apk</p>
+        </div>
+      </div>
+      <p class="note">As duas versões podem ficar instaladas juntas. Os links sempre baixam a versão mais recente, e o próprio aplicativo avisa quando há atualização.</p>
+    </section>
+
+    <footer>Brandão IPTV</footer>
+  </div>
+</body>
+</html>
